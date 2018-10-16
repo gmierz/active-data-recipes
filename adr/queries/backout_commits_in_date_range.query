@@ -1,0 +1,18 @@
+from: repo
+groupby:
+    - push.date
+    - changeset.backedoutby
+    - changeset.id12
+sort:
+    push.date: desc
+where:
+    and:
+        - lte:
+            push.date:
+                date: {$eval: to_date}
+        - gte:
+            push.date:
+                date: {$eval: from_date}
+        - eq: {branch.name: {$eval: branch}}
+        - exists: changeset.backedoutby
+limit: 50000

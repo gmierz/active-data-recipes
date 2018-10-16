@@ -1,0 +1,8 @@
+from: repo
+groupby:
+    - changeset.date
+where:
+    and:
+        - eq: {branch.name: {$eval: branch}}
+        - eq: {changeset.id12: {$eval: changeset}}
+limit: 1
