@@ -16,7 +16,7 @@ BRANCH_WHITELIST = [
 ]
 
 
-def run(args, config):
+def run(args, config, return_results=False):
     parser = RecipeParser('date', 'branch')
     parser.add_argument(
         '--timedistance', default=7200, type=int,
@@ -24,6 +24,10 @@ def run(args, config):
              "and original revision being backed out (in seconds). "
              "Times found greater than this value will be considered as a SETA failure "
              "(a backfill)."
+    )
+    parser.add_argument(
+        '--maxchangesets', default=None, type=int,
+        help="Maximum number of changesets to process."
     )
 
     args = parser.parse_args(args)
@@ -36,6 +40,7 @@ def run(args, config):
     from_date = query_args['from_date']
     branches = query_args['branch']
     timedistance = query_args['timedistance']
+    maxchangesets = query_args['maxchangesets']
 
     # Clean branch argument (remove default branches)
     branch = [
@@ -57,7 +62,10 @@ def run(args, config):
 
     # For each backout commit
     results = []
-    for backout_info in backouts:
+    for count, backout_info in enumerate(backouts):
+        if maxchangesets and count >= maxchangesets:
+            break
+
         backout_time = backout_info[0]
         backout_cset = backout_info[1][:12]
         cset_backedout = backout_info[2][:12]
@@ -77,17 +85,16 @@ def run(args, config):
             failed = True
 
         tp = (failed, backout_cset, cset_backedout)
-        log.info(tp)
+        log.info("Result for changeset (" + str(count) + "): " + tp)
         results.append((failed, backout_cset, cset_backedout))
 
     failed = [failed for failed, bcset, csetb in results if failed]
     passed = [failed for failed, bcset, csetb in results if not failed]
-    log.info('Success Rate: ' + str(100 * (len(passed)/len(results))))
-    return (
-        ['Failed', 'Backout Changeset', 'Changeset Backedout'],
-        [
-            [f for f, _, _ in results],
-            [bc for _, bc, _ in results],
-            [cb for _, _, cb in results]
-        ]
-    )
+    success_rate = 100 * (len(passed)/len(results))
+
+    if not return_results:
+        return (
+            ['success Rate', '# Of Passing', '# Of Failed', 'Total Changesets Analyzed'],
+            [success_rate, len(passed), len(failed), len(results)]
+        )
+    return results
