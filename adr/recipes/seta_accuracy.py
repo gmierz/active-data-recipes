@@ -55,9 +55,15 @@ def run(args, config, return_results=False):
     # Find all backout commits, and the revisions they back out.
     backouts = next(run_query('backout_commits_in_date_range', config, **query_args))['data']
 
+    commits = [info[2] for info in backouts]
     commit_date_query_args = {
         'branch': query_args['branch'],
-        'changeset': None
+        'changesets': commits
+    }
+    orig_cset_times = next(run_query('get_commit_date', config, **commit_date_query_args))['data']
+    orig_cset_times = {
+        cset[:12]: time
+        for time, cset, _ in orig_cset_times
     }
 
     # For each backout commit
@@ -70,9 +76,7 @@ def run(args, config, return_results=False):
         backout_cset = backout_info[1][:12]
         cset_backedout = backout_info[2][:12]
 
-        commit_date_query_args['changeset'] = cset_backedout
-        orig_cset_time = next(run_query('get_commit_date', config, **commit_date_query_args))['data'][0]
-        orig_cset_time = orig_cset_time[0]
+        orig_cset_time = orig_cset_times[cset_backedout]
 
         # Get the distance to the original revision
         # by subtracting the backout time from the original revision time
@@ -85,7 +89,7 @@ def run(args, config, return_results=False):
             failed = True
 
         tp = (failed, backout_cset, cset_backedout)
-        log.info("Result for changeset (" + str(count) + "): " + tp)
+        log.info("Result for changeset (" + str(count) + "): " + str(tp))
         results.append((failed, backout_cset, cset_backedout))
 
     failed = [failed for failed, bcset, csetb in results if failed]
