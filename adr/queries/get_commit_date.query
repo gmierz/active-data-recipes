@@ -4,6 +4,6 @@ groupby:
     - changeset.id12
 where:
     and:
-        - eq: {branch.name: {$eval: branch}}
+        - in: {branch.name: {$eval: branch}}
         - in: {changeset.id12: {$eval: changesets}}
 limit: 100000

@@ -26,6 +26,10 @@ def run(args, config, return_results=False):
              "(a backfill)."
     )
     parser.add_argument(
+        '--lowtimedistance', default=0, type=int,
+        help="Used a lower bound for timedistance."
+    )
+    parser.add_argument(
         '--maxchangesets', default=None, type=int,
         help="Maximum number of changesets to process."
     )
@@ -40,6 +44,7 @@ def run(args, config, return_results=False):
     from_date = query_args['from_date']
     branches = query_args['branch']
     timedistance = query_args['timedistance']
+    lowtimedistance = query_args['lowtimedistance']
     maxchangesets = query_args['maxchangesets']
 
     # Clean branch argument (remove default branches)
@@ -49,7 +54,7 @@ def run(args, config, return_results=False):
     if len(branch) > 1:
         log.info("Too many branch names supplied. Using: " + branch[0])
 
-    branch = branch[0]
+    branch = branch
     query_args['branch'] = branch
 
     # Find all backout commits, and the revisions they back out.
@@ -98,7 +103,7 @@ def run(args, config, return_results=False):
         # Get the distance to the original revision
         # by subtracting the backout time from the original revision time
         distance = backout_time - orig_cset_time
-        if distance == 0:
+        if distance < lowtimedistance:
             continue
 
         # If the distance between backout and original 
@@ -108,13 +113,18 @@ def run(args, config, return_results=False):
             failed = True
 
         tp = (failed, backout_cset, cset_backedout)
-        log.debug("Result for changeset (" + str(count) + "): " + str(tp))
+        log.debug(
+            "Result for changeset (" + str(count) + ") with distance " + str(distance) + ": " + str(tp)
+        )
 
         results.append((failed, backout_cset, cset_backedout))
 
     failed = [failed for failed, bcset, csetb in results if failed]
     passed = [failed for failed, bcset, csetb in results if not failed]
-    success_rate = 100 * (len(passed)/len(results))
+
+    success_rate = 100
+    if len(results) != 0:
+        success_rate = 100 * (len(passed)/len(results))
 
     if not return_results:
         return (

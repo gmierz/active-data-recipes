@@ -13,6 +13,6 @@ where:
         - gte:
             push.date:
                 date: {$eval: from_date}
-        - eq: {branch.name: {$eval: branch}}
+        - in: {branch.name: {$eval: branch}}
         - exists: changeset.backedoutby
 limit: 50000
