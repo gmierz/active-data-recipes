@@ -55,7 +55,7 @@ def run(args, config, return_results=False):
     # Find all backout commits, and the revisions they back out.
     backouts = next(run_query('backout_commits_in_date_range', config, **query_args))['data']
 
-    commits = [info[2] for info in backouts]
+    commits = [info[2][:12] for info in backouts]
     commit_date_query_args = {
         'branch': query_args['branch'],
         'changesets': commits
@@ -65,6 +65,18 @@ def run(args, config, return_results=False):
         cset[:12]: time
         for time, cset, _ in orig_cset_times
     }
+
+    bcommits = [info[1][:12] for info in backouts]
+    commit_date_query_args = {
+        'branch': query_args['branch'],
+        'changesets': bcommits
+    }
+    all_backout_times = next(run_query('get_commit_date', config, **commit_date_query_args))['data']
+    all_backout_times = {
+        cset[:12]: time
+        for time, cset, _ in all_backout_times
+    }
+
 
     # For each backout commit
     results = []
@@ -78,9 +90,16 @@ def run(args, config, return_results=False):
 
         orig_cset_time = orig_cset_times[cset_backedout]
 
+        if backout_cset not in all_backout_times:
+            continue
+
+        backout_time = all_backout_times[backout_cset]
+
         # Get the distance to the original revision
         # by subtracting the backout time from the original revision time
         distance = backout_time - orig_cset_time
+        if distance == 0:
+            continue
 
         # If the distance between backout and original 
         # is greater than time_distance, it is a SETA failure.
@@ -89,7 +108,8 @@ def run(args, config, return_results=False):
             failed = True
 
         tp = (failed, backout_cset, cset_backedout)
-        log.info("Result for changeset (" + str(count) + "): " + str(tp))
+        log.debug("Result for changeset (" + str(count) + "): " + str(tp))
+
         results.append((failed, backout_cset, cset_backedout))
 
     failed = [failed for failed, bcset, csetb in results if failed]

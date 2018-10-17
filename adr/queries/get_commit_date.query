@@ -1,6 +1,6 @@
 from: repo
 groupby:
-    - changeset.date
+    - push.date
     - changeset.id12
 where:
     and:
